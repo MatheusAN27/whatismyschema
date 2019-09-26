@@ -101,7 +101,7 @@ class SchemaDiscovery:
 def main():
     # ----- Logging Info -----
     logging.basicConfig(
-        filename='schema_discovery.log',
+        filename='/tmp/schema_discovery.log',
         filemode='a',
         level=logging.INFO
     )
