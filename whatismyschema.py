@@ -1,106 +1,101 @@
 #!/bin/env python3
 # coding: utf8
-#
-# WhatIsMySchema
-#
-# Copyright (c) 2018 Tim Gubner
-#
-#
+
 
 import argparse
 import logging
-
-
-class Column:
-    """Receives a list of values and determines the best tight type for it
-    """
-
-    __slots__ = "name", "null"
-
-    def __init__(self, name, null):
-        self.name = name
-        self.null = null
-
-    def push(self, attr):
-        pass
-
-
-class Table:
-    """Table keeps track of all columns in the csv file.
-    Also generates the SQL query to create the table.
-    """
-    __slots__ = "columns", "name", "null"
-
-    def __init__(self, name, null):
-        self.columns = []
-        self.name = name
-        self.null = null
-
-    def push(self, attrs):
-        # If the tuple has more or less attributes than the header
-        # raise error, CSV badly formatted
-        if len(attrs) > len(self.columns):
-            logging.error("More attributes than headers")
-            raise Exception("CSV with incorrect format,\
-                             more attributes than header.")
-        if len(attrs) < len(self.columns):
-            logging.error("Less attributes than headers")
-            raise Exception("CSV with incorrect format,\
-                             more attributes than header.")
-
-        # Push attributes to respective columns
-        for attr, col in zip(attrs, self.columns):
-            logging.info(f"""Pushing value to column {col.name}""")
-            col.push(attr)
-
-    def set_headers(self, headers):
-        self.columns = list(
-            map(lambda name: Column(name, self.null), headers)
-        )
-
-    def to_sql(self):
-        pass
+import pandas as pd
+import swifter
 
 
 class SchemaDiscovery:
     """Given a *correct* CSV file, discovers the best fitting tight schema.
-    """
-    __slots__ = "file_path", "skip_lines", "separator", "current_line", "table"
 
-    def __init__(self, table_name, file_path, skip_lines, separator, null):
+    Args:
+        table_name (str): table_name to use on the SQL script.abs
+        file_path (str): path to csv file (full or relative path).
+        skip_lines (uint): number of lines to skip from start of CSV.
+                           Default = 0.
+        separator (str): attribute separator for CSV. Default = ','.
+        null (str): string that represents a NULL value.
+    """
+
+    def __init__(self, table_name, file_path, skip_lines=0, separator=',',
+                 null=''):
+        """Please see help(SchemaDiscovery) for more info"""
         self.file_path = file_path
         self.skip_lines = skip_lines
         self.separator = separator
-        self.current_line = 0
-        self.table = Table(table_name, null)
+        self.table_name = table_name
 
     def run(self):
-        logging.info('Started SchemaDiscovery')
-        with open(self.file_path, "r") as f:
-            # skips the indicated number of lines
-            logging.info('Opening file and skipping requested lines')
-            for _ in range(self.skip_lines):
-                next(f)
+        """Discovers the schema.
 
-            # read the header
-            logging.info('Reading Header')
-            headers = self.__split_line(next(f))
-            self.table.set_headers(headers)
+        Returns:
+            str: returns the SQL string to create the table using the schema.
+        """
+        logging.info('!@@ Started SchemaDiscovery @@!')
 
-            self.current_line = self.skip_lines + 1
+        logging.info('Reading CSV')
+        df = self.__read_csv()
 
-            # read the tuples
-            logging.info('Start reading tuples')
-            for line in f:
-                logging.info(f"""Processing line {self.current_line}""")
-                self.table.push(
-                    self.__split_line(next(f))
-                )
-                self.current_line += 1
-        self.table.to_sql()
+        logging.info('Starting type discovery')
+        types = df.apply(self.__discover_type, axis=0)
 
-    def __split_line(self, line):
-        return line.rstrip('\n').rstrip('\r').split(self.separator)
+        logging.info('Translating to SQL create table statement')
+        return self.__to_sql(types)
+
+    def __read_csv(self):
+        """Reads the CSV file and stores it in a Pandas DataFrame
+
+        Returns:
+            DataFrame: pandas dataframe
+        """
+        df = pd.read_csv(
+                self.file_path,
+                dtype=str,
+                sep=self.separator,
+                skiprows=self.skip_lines,
+                index_col=False)
+        return df
+
+    def __discover_type(self, values):
+        """Given a list, discovers the best fitting type for it.
+
+        Args:
+            values (list of strings): list of strings.
+        """
+        return pd.Series(["string"])
+
+    def __to_sql(self, df):
+        """Translates the DataFrame to a SQL create table.
+
+        Example:
+            DataFrame:
+                col1 | col2 | col3
+                str  | int  | real
+
+            Returns:
+                CREATE TABLE <table_name> (
+                    "col1" string,
+                    "col2" integer,
+                    "col3" real
+                );
+
+        Returns:
+            str: sql create table statement.
+        """
+        columns = df.columns
+
+        sql = f"""CREATE TABLE \"{self.table_name}\" ("""
+
+        for col in columns:
+            sql += f"""\n\t"{col}" {df[col].iloc[0]},"""
+
+        sql = sql[:-1]  # remove last comma
+        sql += "\n);"
+
+        return sql
 
 
 def main():
@@ -150,7 +145,7 @@ def main():
             args.separator,
             args.null
         )
-        discoverer.run()
+        print(discoverer.run())
 
 
 if __name__ == '__main__':
