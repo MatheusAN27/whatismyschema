@@ -40,7 +40,7 @@ class SchemaDiscovery:
         df = self.__read_csv()
 
         logging.info('Starting type discovery')
-        types = df.apply(self.__discover_type, axis=0)
+        types = df.swifter.apply(self.__discover_type, axis=0)
 
         logging.info('Translating to SQL create table statement')
         return self.__to_sql(types)
