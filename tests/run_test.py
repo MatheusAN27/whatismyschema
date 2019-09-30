@@ -10,6 +10,7 @@
 import unittest
 from whatismyschema import *
 
+
 class WhatIsMySchemaTestCase(unittest.TestCase):
 	def fix_type(self, t):
 		return t.lower().replace(" ", "").replace("\n", "")

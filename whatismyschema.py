@@ -40,7 +40,7 @@ class SchemaDiscovery:
         df = self.__read_csv()
 
         logging.info('Starting type discovery')
-        types = df.swifter.apply(self.__discover_type, axis=0)
+        types = self.__discover_schema(df)
 
         logging.info('Translating to SQL create table statement')
         return self.__to_sql(types)
@@ -59,22 +59,39 @@ class SchemaDiscovery:
                 index_col=False)
         return df
 
+    def __discover_schema(self, df):
+        """Given a DataFrame, discovers the best fitting
+            types for each column.
+
+        Args:
+            df: pandas DataFrame
+
+        Returns:
+            Dictionary with keys as column names, and
+                values as types
+        """
+        types = {}
+
+        # types = df.swifter.apply(self.__discover_type, axis=0)
+        return types
+
     def __discover_type(self, values):
         """Given a list, discovers the best fitting type for it.
 
         Args:
             values (list of strings): list of strings.
         """
-        return pd.Series(["string"])
+        return "string"
 
-    def __to_sql(self, df):
-        """Translates the DataFrame to a SQL create table.
+    def __to_sql(self, types):
+        """Translates the dictionary into a SQL create table.
 
         Example:
-            DataFrame:
-                col1 | col2 | col3
-                str  | int  | real
-
+            Dictionary:{
+               col1: string,
+               col2: integer,
+               col3: real
+            }
             Returns:
                 CREATE TABLE <table_name> (
                     "col1" string,
@@ -82,15 +99,25 @@ class SchemaDiscovery:
                     "col3" real
                 );
 
+        Args:
+            types (dictionary): dictionary with column names as keys
+                and types as values.
+
         Returns:
             str: sql create table statement.
         """
-        columns = df.columns
+
+        if len(types) < 1:
+            logging.error(
+                "Size of dictionary equals 0, \
+                 no attributes to create SQL query"
+            )
+            raise KeyError
 
         sql = f"""CREATE TABLE \"{self.table_name}\" ("""
 
-        for col in columns:
-            sql += f"""\n\t"{col}" {df[col].iloc[0]},"""
+        for col, t in types.items():
+            sql += f"""\n\t"{col}" {t},"""
 
         sql = sql[:-1]  # remove last comma
         sql += "\n);"
