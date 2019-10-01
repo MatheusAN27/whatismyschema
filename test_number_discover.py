@@ -45,7 +45,7 @@ class TestNumberDiscover:
             '-1', '0', '1',
             '5e-4'
         ]
-        assert NumberDiscover.discover(values) == 'decimal'
+        assert NumberDiscover.discover(values) == 'decimal(5, 4)'
 
     def test_implicit_pre_dot(self):
         values = [
