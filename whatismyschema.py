@@ -7,6 +7,7 @@ import logging
 import pandas as pd
 import swifter
 import math
+from decimal import Decimal
 
 
 class NumberDiscover:
@@ -57,8 +58,7 @@ class NumberDiscover:
 
             # If Scientific Notation, expand it
             if 'e' in v:
-                _, post = v.split('e')
-                v = format(float(v), f""".{int(post)}f""")
+                v = format(Decimal(v), 'f')
 
             # Split the number into two values
             splitted = v.split('.', 1)
